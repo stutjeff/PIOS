@@ -1,3 +1,3 @@
-# PIOS Manifesto
+# PIOS
 
-PIOS exists to improve investment decision quality.
+Version: v2.1 Data Source Health Check

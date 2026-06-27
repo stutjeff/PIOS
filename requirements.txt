@@ -1,3 +1,5 @@
-# PIOS
-
-Version: v2.1 Data Source Health Check
+streamlit
+pandas
+yfinance
+requests
+beautifulsoup4
