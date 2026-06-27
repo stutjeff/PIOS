@@ -25,8 +25,9 @@ LEVEL_WEIGHT = {
 RADAR_WEIGHTS = {
     "real_market_pressure": 0.50,
     "taiwan_core_watch": 0.20,
-    "chengxin_watch": 0.20,
-    "market_pressure": 0.10,  # mock 對照資料，只給低權重。
+    "chengxin_watch": 0.15,
+    "news_radar": 0.15,
+    "market_pressure": 0.05,  # mock 對照資料，只給低權重。
 }
 
 

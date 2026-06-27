@@ -26,7 +26,7 @@ class RadarSignal(Base):
     __tablename__ = "radar_signals"
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     radar_name: Mapped[str] = mapped_column(String(80), index=True)
-    level: Mapped[str] = mapped_column(String(20), index=True)  # green/yellow/red
+    level: Mapped[str] = mapped_column(String(20), index=True)  # green/yellow/red/gray
     score: Mapped[float] = mapped_column(Float, default=0)
     summary: Mapped[str] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, index=True)
@@ -41,3 +41,22 @@ class SourceRun(Base):
     error: Mapped[str | None] = mapped_column(Text, nullable=True)
     started_at: Mapped[datetime] = mapped_column(DateTime, index=True)
     finished_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+
+
+class NewsItem(Base):
+    __tablename__ = "news_items"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    source: Mapped[str] = mapped_column(String(80), index=True)
+    title: Mapped[str] = mapped_column(Text)
+    url: Mapped[str] = mapped_column(Text)
+    publisher: Mapped[str | None] = mapped_column(String(160), nullable=True)
+    query: Mapped[str | None] = mapped_column(String(160), nullable=True, index=True)
+    symbols: Mapped[str | None] = mapped_column(String(240), nullable=True, index=True)
+    sentiment: Mapped[float | None] = mapped_column(Float, nullable=True)
+    summary: Mapped[str | None] = mapped_column(Text, nullable=True)
+    published_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True, index=True)
+    captured_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, index=True)
+
+    __table_args__ = (
+        UniqueConstraint("source", "url", name="uq_news_source_url"),
+    )
