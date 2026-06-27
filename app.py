@@ -4,38 +4,158 @@ import yfinance as yf
 from pathlib import Path
 from datetime import datetime
 
-st.set_page_config(page_title="PIOS", page_icon="📈", layout="wide")
+st.set_page_config(
+    page_title="PIOS",
+    page_icon="📈",
+    layout="wide"
+)
 
 WATCHLIST_FILE = Path("watchlist.csv")
 NOTES_FILE = Path("company_notes.csv")
 THESIS_FILE = Path("investment_thesis.csv")
 DECISION_FILE = Path("decision_log.csv")
+EARNINGS_FILE = Path("earnings_notes.csv")
+REPORT_FILE = Path("financial_notes.csv")
+NEWS_FILE = Path("news_notes.csv")
 
 REQUIRED_COLUMNS = [
     "ticker", "name", "market", "industry", "sub_industry", "theme",
-    "main_products", "business_model", "customers", "competitors", "key_questions", "status"
+    "main_products", "business_model", "customers", "suppliers",
+    "competitors", "moat", "management", "key_questions", "status"
 ]
 
 DEFAULT_DATA = [
-    ["6969.TW", "成信", "台股", "環保回收", "半導體循環經濟", "半導體、循環經濟、零廢製造", "CMP研磨材料回收、功能性陶瓷粉體、電子級二氧化矽", "承接半導體相關廢棄物與副產物，透過回收、純化與再利用技術轉為可銷售材料。", "台積電供應鏈、日月光供應鏈、半導體與電子材料客戶", "其他環保處理商、半導體廢棄物回收商、材料再生業者", "中科處理額度是否放寬？球形二氧化矽驗證是否完成？南科零廢中心是否落地？", "持續追蹤"],
-    ["4755.TW", "三福化", "台股", "半導體化學品", "電子級化學品", "半導體材料、特用化學", "電子級化學品、精密化學品、特用材料", "提供半導體與電子產業所需化學材料。", "半導體、面板、電子材料客戶", "國內外電子級化學品供應商", "先進製程需求是否擴大？毛利率是否改善？新客戶驗證是否進展？", "持續追蹤"],
-    ["1513.TW", "中興電", "台股", "電機設備", "重電 / 電網", "電網升級、AI電力、能源轉型", "重電設備、變電設備、電力工程、智慧電網相關設備", "提供電力基礎建設設備與工程服務，受惠電網升級與用電需求增加。", "台電、公共工程、民間電力建設客戶", "華城、士電、國際重電設備商", "訂單能見度是否延續？毛利率是否維持？AI電力需求是否實際反映？", "持續追蹤"],
-    ["8936.TW", "國統", "台股", "水資源", "管線 / 海淡 / 再生水", "水資源、海淡、極端氣候", "管線工程、水資源工程、海淡與再生水相關工程", "承接大型管線、水資源與海淡再生水工程，受惠水資源基礎建設。", "政府標案、公用事業、工業用水需求者", "水資源工程承包商、管線工程公司", "海淡與再生水標案是否增加？工程毛利率是否改善？營運權是否擴大？", "持續追蹤"],
-    ["2308.TW", "台達電", "台股", "電源 / 散熱", "AI資料中心 / 能源管理", "AI資料中心、電源、液冷、能源管理", "電源供應器、散熱、工業自動化、能源管理、資料中心解決方案", "提供高效率電源、散熱與能源管理方案，受惠AI資料中心與電氣化趨勢。", "資料中心、伺服器、工業自動化、電動車與能源客戶", "Vertiv、Schneider Electric、其他電源與散熱供應商", "AI資料中心需求是否持續？液冷與電源產品毛利率如何？估值是否過熱？", "持續追蹤"],
-    ["NVDA", "NVIDIA", "美股", "半導體", "AI晶片", "AI、GPU、資料中心", "GPU、AI加速器、資料中心平台、CUDA生態系", "銷售AI晶片、資料中心平台與軟硬整合解決方案。", "雲端服務商、AI模型公司、企業資料中心", "AMD、Broadcom、ASIC供應商、雲端自研晶片", "AI資本支出是否維持？毛利率是否下滑？競爭者ASIC是否侵蝕需求？", "持續追蹤"],
-    ["MSFT", "Microsoft", "美股", "軟體 / 雲端", "AI雲端", "AI、雲端、企業軟體", "Azure、Office、Windows、Copilot、企業雲端服務", "以雲端、訂閱制軟體與企業服務創造穩定現金流。", "企業、政府、個人用戶、開發者", "Google、Amazon、Oracle、Salesforce", "AI投入是否轉化為收入？Azure成長是否延續？資本支出壓力是否上升？", "持續追蹤"],
-    ["CEG", "Constellation Energy", "美股", "電力", "核電 / 資料中心電力", "核電、AI資料中心電力、長約供電", "核電、電力供應、能源合約", "提供穩定低碳電力，受惠資料中心長期用電需求。", "公用事業、企業客戶、資料中心", "其他電力公司、再生能源供應商、天然氣發電商", "AI資料中心長約是否增加？核電政策是否支持？電價與資本支出如何變化？", "持續追蹤"],
-    ["7203.T", "Toyota", "日股", "汽車", "混合動力 / 自動化", "混合動力、全球汽車、自動化", "汽車、混合動力車、商用車", "全球汽車製造與銷售，混合動力與供應鏈管理為重要優勢。", "全球汽車消費者、商用車客戶", "Volkswagen、Hyundai、Tesla、中國車企", "混合動力優勢是否延續？電動車轉型是否落後？匯率是否影響獲利？", "觀察"],
-    ["8035.T", "Tokyo Electron", "日股", "半導體設備", "前段製程設備", "半導體設備、先進製程", "半導體製造設備、塗佈顯影設備、蝕刻設備", "銷售半導體製造設備，受惠晶圓廠資本支出。", "晶圓代工、記憶體、IDM半導體公司", "ASML、Applied Materials、Lam Research", "半導體資本支出是否回升？中國限制是否影響？先進製程需求是否延續？", "觀察"],
+    {
+        "ticker": "6969.TW",
+        "name": "成信",
+        "market": "台股",
+        "industry": "環保回收",
+        "sub_industry": "半導體循環經濟",
+        "theme": "半導體、循環經濟、零廢製造",
+        "main_products": "CMP研磨材料回收、功能性陶瓷粉體、電子級二氧化矽",
+        "business_model": "承接半導體相關廢棄物與副產物，透過回收、純化與再利用技術轉為可銷售材料。",
+        "customers": "台積電供應鏈、日月光供應鏈、半導體與電子材料客戶",
+        "suppliers": "半導體廢棄物來源、回收處理設備與材料供應商",
+        "competitors": "其他環保處理商、半導體廢棄物回收商、材料再生業者",
+        "moat": "驗證門檻、法規門檻、客戶導入時間、回收純化技術。",
+        "management": "待補充",
+        "key_questions": "中科處理額度是否放寬？球形二氧化矽驗證是否完成？南科零廢中心是否落地？",
+        "status": "核心觀察",
+    },
+    {
+        "ticker": "1513.TW",
+        "name": "中興電",
+        "market": "台股",
+        "industry": "電機設備",
+        "sub_industry": "重電 / 電網",
+        "theme": "電網升級、AI電力、能源轉型",
+        "main_products": "重電設備、變電設備、電力工程、智慧電網相關設備",
+        "business_model": "提供電力基礎建設設備與工程服務，受惠電網升級與用電需求增加。",
+        "customers": "台電、公共工程、民間電力建設客戶",
+        "suppliers": "鋼材、銅材、電力設備零組件供應商",
+        "competitors": "華城、士電、國際重電設備商",
+        "moat": "本土電網標案經驗、設備認證、市占與工程履歷。",
+        "management": "待補充",
+        "key_questions": "訂單能見度是否延續？毛利率是否維持？AI電力需求是否實際反映？",
+        "status": "持續追蹤",
+    },
+    {
+        "ticker": "8936.TW",
+        "name": "國統",
+        "market": "台股",
+        "industry": "水資源",
+        "sub_industry": "管線 / 海淡 / 再生水",
+        "theme": "水資源、海淡、極端氣候",
+        "main_products": "管線工程、水資源工程、海淡與再生水相關工程",
+        "business_model": "承接大型管線、水資源與海淡再生水工程，受惠水資源基礎建設。",
+        "customers": "政府標案、公用事業、工業用水需求者",
+        "suppliers": "管材、工程設備、施工承包商",
+        "competitors": "水資源工程承包商、管線工程公司",
+        "moat": "大型管線工程經驗、工程履歷、標案資格。",
+        "management": "待補充",
+        "key_questions": "海淡與再生水標案是否增加？工程毛利率是否改善？營運權是否擴大？",
+        "status": "持續追蹤",
+    },
+    {
+        "ticker": "2308.TW",
+        "name": "台達電",
+        "market": "台股",
+        "industry": "電源 / 散熱",
+        "sub_industry": "AI資料中心 / 能源管理",
+        "theme": "AI資料中心、電源、液冷、能源管理",
+        "main_products": "電源供應器、散熱、工業自動化、能源管理、資料中心解決方案",
+        "business_model": "提供高效率電源、散熱與能源管理方案，受惠AI資料中心與電氣化趨勢。",
+        "customers": "資料中心、伺服器、工業自動化、電動車與能源客戶",
+        "suppliers": "功率半導體、磁性元件、機構件、電子零組件供應商",
+        "competitors": "Vertiv、Schneider Electric、其他電源與散熱供應商",
+        "moat": "規模、客戶黏著度、能源效率技術、完整產品線。",
+        "management": "待補充",
+        "key_questions": "AI資料中心需求是否持續？液冷與電源產品毛利率如何？估值是否過熱？",
+        "status": "持續追蹤",
+    },
+    {
+        "ticker": "NVDA",
+        "name": "NVIDIA",
+        "market": "美股",
+        "industry": "半導體",
+        "sub_industry": "AI晶片",
+        "theme": "AI、GPU、資料中心",
+        "main_products": "GPU、AI加速器、資料中心平台、CUDA生態系",
+        "business_model": "銷售AI晶片、資料中心平台與軟硬整合解決方案。",
+        "customers": "雲端服務商、AI模型公司、企業資料中心",
+        "suppliers": "台積電、封裝、記憶體、伺服器供應鏈",
+        "competitors": "AMD、Broadcom、ASIC供應商、雲端自研晶片",
+        "moat": "CUDA生態系、軟硬整合、規模、開發者黏著度。",
+        "management": "待補充",
+        "key_questions": "AI資本支出是否維持？毛利率是否下滑？競爭者ASIC是否侵蝕需求？",
+        "status": "持續追蹤",
+    },
+    {
+        "ticker": "CEG",
+        "name": "Constellation Energy",
+        "market": "美股",
+        "industry": "電力",
+        "sub_industry": "核電 / 資料中心電力",
+        "theme": "核電、AI資料中心電力、長約供電",
+        "main_products": "核電、電力供應、能源合約",
+        "business_model": "提供穩定低碳電力，受惠資料中心長期用電需求。",
+        "customers": "公用事業、企業客戶、資料中心",
+        "suppliers": "核燃料、電網與能源設備供應商",
+        "competitors": "其他電力公司、再生能源供應商、天然氣發電商",
+        "moat": "既有核電資產、長期供電合約、穩定基載電力。",
+        "management": "待補充",
+        "key_questions": "AI資料中心長約是否增加？核電政策是否支持？電價與資本支出如何變化？",
+        "status": "持續追蹤",
+    },
+    {
+        "ticker": "7203.T",
+        "name": "Toyota",
+        "market": "日股",
+        "industry": "汽車",
+        "sub_industry": "混合動力 / 自動化",
+        "theme": "混合動力、全球汽車、自動化",
+        "main_products": "汽車、混合動力車、商用車",
+        "business_model": "全球汽車製造與銷售，混合動力與供應鏈管理為重要優勢。",
+        "customers": "全球汽車消費者、商用車客戶",
+        "suppliers": "汽車零組件、電池、半導體與材料供應商",
+        "competitors": "Volkswagen、Hyundai、Tesla、中國車企",
+        "moat": "製造能力、品牌、供應鏈管理、混合動力技術。",
+        "management": "待補充",
+        "key_questions": "混合動力優勢是否延續？電動車轉型是否落後？匯率是否影響獲利？",
+        "status": "觀察",
+    },
 ]
+
 
 def init_csv(path, columns):
     if not path.exists():
         pd.DataFrame(columns=columns).to_csv(path, index=False)
 
+
 def init_watchlist():
     if not WATCHLIST_FILE.exists():
-        pd.DataFrame(DEFAULT_DATA, columns=REQUIRED_COLUMNS).to_csv(WATCHLIST_FILE, index=False)
+        pd.DataFrame(DEFAULT_DATA).to_csv(WATCHLIST_FILE, index=False)
+
 
 def load_watchlist():
     init_watchlist()
@@ -45,29 +165,19 @@ def load_watchlist():
             df[col] = ""
     return df[REQUIRED_COLUMNS]
 
+
 def save_watchlist(df):
     df.to_csv(WATCHLIST_FILE, index=False)
 
-def load_notes():
-    init_csv(NOTES_FILE, ["ticker", "note", "updated_at"])
-    return pd.read_csv(NOTES_FILE)
 
-def save_notes(df):
-    df.to_csv(NOTES_FILE, index=False)
+def load_table(path, columns):
+    init_csv(path, columns)
+    return pd.read_csv(path)
 
-def load_thesis():
-    init_csv(THESIS_FILE, ["ticker", "thesis", "risk", "check_item", "updated_at"])
-    return pd.read_csv(THESIS_FILE)
 
-def save_thesis(df):
-    df.to_csv(THESIS_FILE, index=False)
+def save_table(df, path):
+    df.to_csv(path, index=False)
 
-def load_decisions():
-    init_csv(DECISION_FILE, ["date", "ticker", "action", "reason", "risk", "thesis"])
-    return pd.read_csv(DECISION_FILE)
-
-def save_decisions(df):
-    df.to_csv(DECISION_FILE, index=False)
 
 @st.cache_data(ttl=900)
 def get_price_data(ticker):
@@ -81,18 +191,29 @@ def get_price_data(ticker):
         prev_close = float(close.iloc[-2])
         daily_change = (latest_close / prev_close - 1) * 100
         high_52w = float(close.max())
+        low_52w = float(close.min())
         drop_from_high = (latest_close / high_52w - 1) * 100
+        upside_from_low = (latest_close / low_52w - 1) * 100
         avg_volume_20 = float(volume.tail(20).mean())
         latest_volume = float(volume.iloc[-1])
         volume_ratio = latest_volume / avg_volume_20 if avg_volume_20 > 0 else 0
-        return {"price": latest_close, "daily_change": daily_change, "drop_from_high": drop_from_high, "volume_ratio": volume_ratio}
+        return {
+            "price": latest_close,
+            "daily_change": daily_change,
+            "high_52w": high_52w,
+            "low_52w": low_52w,
+            "drop_from_high": drop_from_high,
+            "upside_from_low": upside_from_low,
+            "volume_ratio": volume_ratio,
+        }
     except Exception:
         return None
+
 
 @st.cache_data(ttl=3600)
 def get_info(ticker):
     try:
-        info = yf.Ticker(ticker).info
+        info = yf.Ticker(ticker).info or {}
         return {
             "market_cap": info.get("marketCap"),
             "pe": info.get("trailingPE"),
@@ -101,9 +222,12 @@ def get_info(ticker):
             "dividend_yield": info.get("dividendYield"),
             "revenue_growth": info.get("revenueGrowth"),
             "earnings_growth": info.get("earningsGrowth"),
+            "roe": info.get("returnOnEquity"),
+            "profit_margin": info.get("profitMargins"),
         }
     except Exception:
         return {}
+
 
 def fmt_num(value):
     if value is None or pd.isna(value):
@@ -120,40 +244,69 @@ def fmt_num(value):
     except Exception:
         return "—"
 
-def fmt_pct(value):
+
+def fmt_pct(value, already_pct=False):
     if value is None or pd.isna(value):
         return "—"
     try:
-        return f"{float(value) * 100:.2f}%"
+        v = float(value)
+        if not already_pct:
+            v *= 100
+        return f"{v:.2f}%"
     except Exception:
         return "—"
 
-def get_status_badge(status):
-    if status == "持續追蹤": return "🟢 持續追蹤"
-    if status == "觀察": return "🟡 觀察"
-    if status == "暫停追蹤": return "⚪ 暫停追蹤"
-    return str(status)
 
 def black_swan_score(price_data):
     if not price_data:
         return 0, ["尚未取得股價資料"]
+
     score = 0
     reasons = []
+
     if abs(price_data["daily_change"]) >= 7:
         score += 25
         reasons.append("單日漲跌超過 7%")
+
     if price_data["volume_ratio"] >= 2:
         score += 20
         reasons.append("成交量超過 20 日均量 2 倍")
+
     if price_data["drop_from_high"] <= -30:
         score += 15
         reasons.append("距 52 週高點跌深超過 30%")
+
     if price_data["drop_from_high"] <= -50:
         score += 15
         reasons.append("距 52 週高點跌深超過 50%")
+
     if not reasons:
         reasons.append("目前沒有明顯黑天鵝異動")
+
     return score, reasons
+
+
+def status_badge(status):
+    mapping = {
+        "核心觀察": "🔵 核心觀察",
+        "持續追蹤": "🟢 持續追蹤",
+        "觀察": "🟡 觀察",
+        "暫停追蹤": "⚪ 暫停追蹤",
+    }
+    return mapping.get(str(status), str(status))
+
+
+def score_badge(score):
+    if score >= 85:
+        return "S"
+    if score >= 75:
+        return "A"
+    if score >= 60:
+        return "B"
+    if score >= 45:
+        return "C"
+    return "D"
+
 
 def thinking_questions():
     return [
@@ -165,93 +318,113 @@ def thinking_questions():
         ("確認偏誤", "我是不是只看支持自己想法的資料？"),
     ]
 
+
 def section(title, desc=None):
     st.markdown(f"## {title}")
     if desc:
         st.caption(desc)
 
+
+def score_slider(label, default=70, key=None):
+    value = st.slider(label, 0, 100, default, key=key)
+    st.progress(value / 100)
+    return value
+
+
 st.title("📈 PIOS")
-st.caption("Personal Investment Operating System｜v1.0 Company Center")
+st.caption("Personal Investment Operating System｜v1.1 Company Research Center")
 
 watchlist = load_watchlist()
-notes = load_notes()
-thesis_df = load_thesis()
-decision_df = load_decisions()
+notes_df = load_table(NOTES_FILE, ["ticker", "note", "updated_at"])
+thesis_df = load_table(THESIS_FILE, ["ticker", "thesis", "risk", "sell_condition", "confidence", "updated_at"])
+decision_df = load_table(DECISION_FILE, ["date", "ticker", "action", "reason", "risk", "thesis"])
+earnings_df = load_table(EARNINGS_FILE, ["ticker", "date", "summary", "opportunity", "risk", "updated_at"])
+report_df = load_table(REPORT_FILE, ["ticker", "date", "revenue", "eps", "margin", "cashflow", "summary", "updated_at"])
+news_df = load_table(NEWS_FILE, ["ticker", "date", "title", "importance", "summary", "updated_at"])
 
 st.sidebar.title("PIOS")
-page = st.sidebar.radio("選單", ["Dashboard", "Company Center", "Black Swan", "Thinking Models", "Decision Log", "Settings"])
+page = st.sidebar.radio(
+    "選單",
+    ["Dashboard", "Company Center", "Black Swan", "Thinking Models", "Decision Log", "Settings"],
+)
 
 if page == "Dashboard":
     section("Today's Focus", "今天最值得你注意的事情")
     st.info("目前沒有需要立即處理的重要事件。")
-    c1, c2, c3 = st.columns(3)
-    c1.metric("台股追蹤", len(watchlist[watchlist["market"] == "台股"]))
-    c2.metric("美股追蹤", len(watchlist[watchlist["market"] == "美股"]))
-    c3.metric("日股追蹤", len(watchlist[watchlist["market"] == "日股"]))
-    st.divider()
-    section("Watchlist Overview", "目前追蹤清單")
-    show = watchlist[["ticker", "name", "market", "industry", "theme", "status"]].copy()
-    show["status"] = show["status"].apply(get_status_badge)
-    st.dataframe(show, use_container_width=True, hide_index=True)
-    st.divider()
-    section("PIOS Flow", "目前系統核心流程")
-    st.markdown("""
-    **Research → Thinking → Decision → Learning**
 
-    - Research：看公司、法說、財報、新聞、重大事件。
-    - Thinking：用思維模型與反方問題檢查自己的理解。
-    - Decision：建立投資假設、紀錄決策。
-    - Learning：回頭檢查自己是判斷正確，還是只是運氣好。
-    """)
+    c1, c2, c3, c4 = st.columns(4)
+    c1.metric("台股", len(watchlist[watchlist["market"] == "台股"]))
+    c2.metric("美股", len(watchlist[watchlist["market"] == "美股"]))
+    c3.metric("日股", len(watchlist[watchlist["market"] == "日股"]))
+    c4.metric("公司總數", len(watchlist))
+
+    st.divider()
+    section("Core Watchlist")
+    show = watchlist[["ticker", "name", "market", "industry", "theme", "status"]].copy()
+    show["status"] = show["status"].apply(status_badge)
+    st.dataframe(show, use_container_width=True, hide_index=True)
 
 elif page == "Company Center":
-    section("Company Center", "一家公司一個研究頁")
-    col1, col2 = st.columns(2)
-    with col1:
-        market_filter = st.selectbox("市場篩選", ["全部", "台股", "美股", "日股"])
-    with col2:
-        status_filter = st.selectbox("狀態篩選", ["全部", "持續追蹤", "觀察", "暫停追蹤"])
+    section("Company Center", "公司研究中心")
+
+    market_filter = st.sidebar.selectbox("市場", ["全部", "台股", "美股", "日股"])
+    status_filter = st.sidebar.selectbox("狀態", ["全部", "核心觀察", "持續追蹤", "觀察", "暫停追蹤"])
 
     filtered = watchlist.copy()
-    if market_filter != "全部": filtered = filtered[filtered["market"] == market_filter]
-    if status_filter != "全部": filtered = filtered[filtered["status"] == status_filter]
+    if market_filter != "全部":
+        filtered = filtered[filtered["market"] == market_filter]
+    if status_filter != "全部":
+        filtered = filtered[filtered["status"] == status_filter]
 
     if filtered.empty:
         st.warning("目前沒有符合條件的公司。")
     else:
-        selected = st.selectbox("選擇公司", filtered["ticker"] + "｜" + filtered["name"])
+        selected = st.sidebar.radio(
+            "公司",
+            (filtered["ticker"] + "｜" + filtered["name"]).tolist()
+        )
         ticker = selected.split("｜")[0]
         company = watchlist[watchlist["ticker"] == ticker].iloc[0]
+
         price = get_price_data(ticker)
         info = get_info(ticker)
-        swan_score, swan_reasons = black_swan_score(price)
+        swan, swan_reasons = black_swan_score(price)
 
-        st.divider()
         st.markdown(f"# {company['name']} ({company['ticker']})")
-        st.caption(f"{get_status_badge(company['status'])}｜{company['market']}｜{company['industry']}｜{company['sub_industry']}")
+        st.caption(f"{status_badge(company['status'])}｜{company['market']}｜{company['industry']}｜{company['sub_industry']}")
 
-        c1, c2, c3, c4 = st.columns(4)
+        k1, k2, k3, k4 = st.columns(4)
         if price:
-            c1.metric("收盤價", f"{price['price']:.2f}", f"{price['daily_change']:+.2f}%")
-            c2.metric("距52週高點", f"{price['drop_from_high']:.2f}%")
-            c3.metric("量能倍率", f"{price['volume_ratio']:.2f}x")
+            k1.metric("收盤價", f"{price['price']:.2f}", f"{price['daily_change']:+.2f}%")
+            k2.metric("52週高點回落", fmt_pct(price["drop_from_high"], already_pct=True))
+            k3.metric("量能倍率", f"{price['volume_ratio']:.2f}x")
         else:
-            c1.metric("收盤價", "—")
-            c2.metric("距52週高點", "—")
-            c3.metric("量能倍率", "—")
-        c4.metric("黑天鵝分數", swan_score)
+            k1.metric("收盤價", "—")
+            k2.metric("52週高點回落", "—")
+            k3.metric("量能倍率", "—")
+        k4.metric("黑天鵝分數", swan, score_badge(swan))
 
-        tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs(["公司", "估值", "黑天鵝", "思維模型", "Thesis / 筆記", "Decision Log"])
-        with tab1:
-            section("公司基本資料")
-            st.write(f"**主要題材：** {company['theme']}")
-            st.write(f"**主要產品 / 方向：** {company['main_products']}")
-            st.write(f"**商業模式：** {company['business_model']}")
-            st.write(f"**主要客戶：** {company['customers']}")
-            st.write(f"**競爭對手：** {company['competitors']}")
-            st.write(f"**關鍵問題：** {company['key_questions']}")
-        with tab2:
-            section("估值 / 基本面", "資料來源：yfinance，部分台股資料可能不完整")
+        tab_company, tab_value, tab_report, tab_call, tab_news, tab_think, tab_thesis, tab_log = st.tabs(
+            ["公司", "估值", "財報", "法說", "新聞", "思維模型", "Thesis / 筆記", "Decision Log"]
+        )
+
+        with tab_company:
+            section("公司概況")
+            col_a, col_b = st.columns(2)
+            with col_a:
+                st.write(f"**主要題材：** {company['theme']}")
+                st.write(f"**主要產品：** {company['main_products']}")
+                st.write(f"**商業模式：** {company['business_model']}")
+                st.write(f"**護城河：** {company['moat']}")
+            with col_b:
+                st.write(f"**主要客戶：** {company['customers']}")
+                st.write(f"**主要供應商：** {company['suppliers']}")
+                st.write(f"**競爭對手：** {company['competitors']}")
+                st.write(f"**管理層：** {company['management']}")
+            st.info(f"關鍵問題：{company['key_questions']}")
+
+        with tab_value:
+            section("估值 / 基本面", "資料來源：yfinance，台股資料可能不完整")
             v1, v2, v3 = st.columns(3)
             v1.metric("市值", fmt_num(info.get("market_cap")))
             v2.metric("PE", fmt_num(info.get("pe")))
@@ -259,89 +432,232 @@ elif page == "Company Center":
             v4, v5, v6 = st.columns(3)
             v4.metric("PB", fmt_num(info.get("pb")))
             v5.metric("殖利率", fmt_pct(info.get("dividend_yield")))
-            v6.metric("營收成長", fmt_pct(info.get("revenue_growth")))
-        with tab3:
-            section("黑天鵝分析")
-            st.metric("黑天鵝分數", swan_score)
-            for r in swan_reasons:
-                st.write(f"- {r}")
-            st.info("若未來接上 Telegram，只有劇烈異動才推播。推播時會提醒：請回頭檢查法說、財報、重大公告與新聞。")
-        with tab4:
-            section("思維模型反問")
-            for model, q in thinking_questions():
+            v6.metric("ROE", fmt_pct(info.get("roe")))
+
+        with tab_report:
+            section("財報中心")
+            current = report_df[report_df["ticker"] == ticker]
+            if not current.empty:
+                st.dataframe(current, use_container_width=True, hide_index=True)
+
+            with st.form(f"report_{ticker}"):
+                date = st.text_input("財報日期", placeholder="2026-Q1 / 2026-06-30")
+                revenue = st.text_input("營收")
+                eps = st.text_input("EPS")
+                margin = st.text_input("毛利率 / 營益率")
+                cashflow = st.text_input("自由現金流 / 現金流")
+                summary = st.text_area("財報重點")
+                ok = st.form_submit_button("儲存財報紀錄")
+                if ok:
+                    new = pd.DataFrame([{
+                        "ticker": ticker,
+                        "date": date,
+                        "revenue": revenue,
+                        "eps": eps,
+                        "margin": margin,
+                        "cashflow": cashflow,
+                        "summary": summary,
+                        "updated_at": datetime.now().strftime("%Y-%m-%d %H:%M"),
+                    }])
+                    report_df = pd.concat([report_df, new], ignore_index=True)
+                    save_table(report_df, REPORT_FILE)
+                    st.success("已儲存財報紀錄")
+                    st.rerun()
+
+        with tab_call:
+            section("法說中心")
+            current = earnings_df[earnings_df["ticker"] == ticker]
+            if not current.empty:
+                st.dataframe(current, use_container_width=True, hide_index=True)
+
+            with st.form(f"call_{ticker}"):
+                date = st.text_input("法說日期", placeholder="2026-06-27")
+                summary = st.text_area("管理層重點")
+                opportunity = st.text_area("機會")
+                risk = st.text_area("風險")
+                ok = st.form_submit_button("儲存法說紀錄")
+                if ok:
+                    new = pd.DataFrame([{
+                        "ticker": ticker,
+                        "date": date,
+                        "summary": summary,
+                        "opportunity": opportunity,
+                        "risk": risk,
+                        "updated_at": datetime.now().strftime("%Y-%m-%d %H:%M"),
+                    }])
+                    earnings_df = pd.concat([earnings_df, new], ignore_index=True)
+                    save_table(earnings_df, EARNINGS_FILE)
+                    st.success("已儲存法說紀錄")
+                    st.rerun()
+
+        with tab_news:
+            section("新聞中心")
+            current = news_df[news_df["ticker"] == ticker]
+            if not current.empty:
+                st.dataframe(current, use_container_width=True, hide_index=True)
+
+            with st.form(f"news_{ticker}"):
+                date = st.text_input("新聞日期", placeholder="2026-06-27")
+                title = st.text_input("新聞標題")
+                importance = st.selectbox("重要性", ["低", "中", "高", "重大"])
+                summary = st.text_area("摘要 / 對投資假設的影響")
+                ok = st.form_submit_button("儲存新聞")
+                if ok:
+                    new = pd.DataFrame([{
+                        "ticker": ticker,
+                        "date": date,
+                        "title": title,
+                        "importance": importance,
+                        "summary": summary,
+                        "updated_at": datetime.now().strftime("%Y-%m-%d %H:%M"),
+                    }])
+                    news_df = pd.concat([news_df, new], ignore_index=True)
+                    save_table(news_df, NEWS_FILE)
+                    st.success("已儲存新聞")
+                    st.rerun()
+
+        with tab_think:
+            section("思維模型評分")
+            c1, c2 = st.columns(2)
+            with c1:
+                trend = score_slider("長期趨勢", 80, f"{ticker}_trend")
+                moat = score_slider("護城河", 70, f"{ticker}_moat")
+                finance = score_slider("財務品質", 60, f"{ticker}_finance")
+            with c2:
+                valuation = score_slider("估值合理性", 60, f"{ticker}_valuation")
+                risk = score_slider("風險可控性", 60, f"{ticker}_risk")
+                understanding = score_slider("我的理解程度", 70, f"{ticker}_understanding")
+            total = round((trend + moat + finance + valuation + risk + understanding) / 6)
+            st.metric("思維模型總分", total, score_badge(total))
+
+            st.divider()
+            section("蘇格拉底式反問")
+            for model, question in thinking_questions():
                 with st.expander(model):
-                    st.write(q)
-                    st.text_area(f"{model}：你的回答", key=f"{ticker}_{model}")
-        with tab5:
+                    st.write(question)
+                    st.text_area("你的回答", key=f"{ticker}_{model}")
+
+        with tab_thesis:
             section("Investment Thesis")
-            current_thesis = thesis_df[thesis_df["ticker"] == ticker]
-            if not current_thesis.empty:
-                st.dataframe(current_thesis, use_container_width=True, hide_index=True)
-            with st.form(f"thesis_form_{ticker}"):
-                thesis_text = st.text_area("投資假設")
-                risk_text = st.text_area("主要風險")
-                check_item = st.text_area("需要驗證的事項")
-                if st.form_submit_button("儲存 Thesis"):
-                    new = pd.DataFrame([{"ticker": ticker, "thesis": thesis_text, "risk": risk_text, "check_item": check_item, "updated_at": datetime.now().strftime("%Y-%m-%d %H:%M")}])
+            current = thesis_df[thesis_df["ticker"] == ticker]
+            if not current.empty:
+                st.dataframe(current, use_container_width=True, hide_index=True)
+
+            with st.form(f"thesis_{ticker}"):
+                thesis_text = st.text_area("我為什麼看好 / 追蹤？")
+                risk_text = st.text_area("最大的風險")
+                sell_condition = st.text_area("什麼情況會賣出 / 放棄？")
+                confidence = st.slider("目前信心", 0, 100, 70)
+                ok = st.form_submit_button("儲存 Thesis")
+                if ok:
+                    new = pd.DataFrame([{
+                        "ticker": ticker,
+                        "thesis": thesis_text,
+                        "risk": risk_text,
+                        "sell_condition": sell_condition,
+                        "confidence": confidence,
+                        "updated_at": datetime.now().strftime("%Y-%m-%d %H:%M"),
+                    }])
                     thesis_df = pd.concat([thesis_df, new], ignore_index=True)
-                    save_thesis(thesis_df)
+                    save_table(thesis_df, THESIS_FILE)
                     st.success("已儲存 Thesis")
                     st.rerun()
+
             st.divider()
             section("我的筆記")
-            current_notes = notes[notes["ticker"] == ticker]
+            current_notes = notes_df[notes_df["ticker"] == ticker]
             if not current_notes.empty:
                 st.dataframe(current_notes, use_container_width=True, hide_index=True)
-            with st.form(f"note_form_{ticker}"):
-                note_text = st.text_area("新增筆記")
-                if st.form_submit_button("儲存筆記"):
-                    new_note = pd.DataFrame([{"ticker": ticker, "note": note_text, "updated_at": datetime.now().strftime("%Y-%m-%d %H:%M")}])
-                    notes = pd.concat([notes, new_note], ignore_index=True)
-                    save_notes(notes)
+
+            with st.form(f"note_{ticker}"):
+                note = st.text_area("新增筆記")
+                ok = st.form_submit_button("儲存筆記")
+                if ok:
+                    new = pd.DataFrame([{
+                        "ticker": ticker,
+                        "note": note,
+                        "updated_at": datetime.now().strftime("%Y-%m-%d %H:%M"),
+                    }])
+                    notes_df = pd.concat([notes_df, new], ignore_index=True)
+                    save_table(notes_df, NOTES_FILE)
                     st.success("已儲存筆記")
                     st.rerun()
-        with tab6:
+
+        with tab_log:
             section("Decision Log")
-            current_decisions = decision_df[decision_df["ticker"] == ticker]
-            if not current_decisions.empty:
-                st.dataframe(current_decisions, use_container_width=True, hide_index=True)
-            with st.form(f"decision_form_{ticker}"):
+            current = decision_df[decision_df["ticker"] == ticker]
+            if not current.empty:
+                st.dataframe(current, use_container_width=True, hide_index=True)
+
+            with st.form(f"decision_{ticker}"):
                 action = st.selectbox("動作", ["研究", "觀察", "買進", "加碼", "減碼", "賣出", "放棄"])
                 reason = st.text_area("原因")
                 risk = st.text_area("主要風險")
                 d_thesis = st.text_area("當時投資假設")
-                if st.form_submit_button("儲存 Decision"):
-                    new_d = pd.DataFrame([{"date": datetime.now().strftime("%Y-%m-%d %H:%M"), "ticker": ticker, "action": action, "reason": reason, "risk": risk, "thesis": d_thesis}])
-                    decision_df = pd.concat([decision_df, new_d], ignore_index=True)
-                    save_decisions(decision_df)
+                ok = st.form_submit_button("儲存 Decision")
+                if ok:
+                    new = pd.DataFrame([{
+                        "date": datetime.now().strftime("%Y-%m-%d %H:%M"),
+                        "ticker": ticker,
+                        "action": action,
+                        "reason": reason,
+                        "risk": risk,
+                        "thesis": d_thesis,
+                    }])
+                    decision_df = pd.concat([decision_df, new], ignore_index=True)
+                    save_table(decision_df, DECISION_FILE)
                     st.success("已儲存 Decision")
                     st.rerun()
 
     st.divider()
     section("新增 / 更新公司")
     with st.form("add_company"):
-        ticker = st.text_input("股票代號", placeholder="例如：6969.TW / NVDA / 7203.T")
-        name = st.text_input("公司名稱")
-        market = st.selectbox("市場", ["台股", "美股", "日股"])
-        industry = st.text_input("產業")
-        sub_industry = st.text_input("次產業")
-        theme = st.text_input("題材")
-        main_products = st.text_area("主要產品 / 公司方向")
+        cols = st.columns(2)
+        with cols[0]:
+            ticker = st.text_input("股票代號", placeholder="例如：6969.TW / NVDA / 7203.T")
+            name = st.text_input("公司名稱")
+            market = st.selectbox("市場", ["台股", "美股", "日股"])
+            status = st.selectbox("狀態", ["核心觀察", "持續追蹤", "觀察", "暫停追蹤"])
+        with cols[1]:
+            industry = st.text_input("產業")
+            sub_industry = st.text_input("次產業")
+            theme = st.text_input("題材")
+        main_products = st.text_area("主要產品")
         business_model = st.text_area("商業模式")
         customers = st.text_area("主要客戶")
+        suppliers = st.text_area("主要供應商")
         competitors = st.text_area("競爭對手")
+        moat = st.text_area("護城河摘要")
+        management = st.text_area("管理層")
         key_questions = st.text_area("關鍵問題")
-        status = st.selectbox("狀態", ["持續追蹤", "觀察", "暫停追蹤"])
-        if st.form_submit_button("新增 / 更新"):
+        ok = st.form_submit_button("新增 / 更新公司")
+        if ok:
             if not ticker or not name:
                 st.error("股票代號與公司名稱必填。")
             else:
-                new_row = pd.DataFrame([{"ticker": ticker.strip(), "name": name.strip(), "market": market, "industry": industry.strip(), "sub_industry": sub_industry.strip(), "theme": theme.strip(), "main_products": main_products.strip(), "business_model": business_model.strip(), "customers": customers.strip(), "competitors": competitors.strip(), "key_questions": key_questions.strip(), "status": status}])
-                watchlist = pd.concat([watchlist, new_row], ignore_index=True)
+                new = pd.DataFrame([{
+                    "ticker": ticker.strip(),
+                    "name": name.strip(),
+                    "market": market,
+                    "industry": industry.strip(),
+                    "sub_industry": sub_industry.strip(),
+                    "theme": theme.strip(),
+                    "main_products": main_products.strip(),
+                    "business_model": business_model.strip(),
+                    "customers": customers.strip(),
+                    "suppliers": suppliers.strip(),
+                    "competitors": competitors.strip(),
+                    "moat": moat.strip(),
+                    "management": management.strip(),
+                    "key_questions": key_questions.strip(),
+                    "status": status,
+                }])
+                watchlist = pd.concat([watchlist, new], ignore_index=True)
                 watchlist = watchlist.drop_duplicates(subset=["ticker"], keep="last")
                 save_watchlist(watchlist)
                 st.success(f"已新增 / 更新：{ticker} {name}")
                 st.rerun()
+
     section("刪除公司")
     delete_ticker = st.selectbox("選擇要刪除的股票", [""] + watchlist["ticker"].astype(str).tolist())
     if st.button("刪除公司"):
@@ -350,8 +666,6 @@ elif page == "Company Center":
             save_watchlist(watchlist)
             st.success(f"已刪除：{delete_ticker}")
             st.rerun()
-        else:
-            st.warning("請先選擇要刪除的股票。")
 
 elif page == "Black Swan":
     section("Black Swan Center", "劇烈波動提醒中心")
@@ -359,9 +673,15 @@ elif page == "Black Swan":
     for _, row in watchlist.iterrows():
         p = get_price_data(row["ticker"])
         score, reasons = black_swan_score(p)
-        rows.append({"ticker": row["ticker"], "name": row["name"], "market": row["market"], "score": score, "reason": "；".join(reasons)})
-    swan_df = pd.DataFrame(rows).sort_values("score", ascending=False)
-    st.dataframe(swan_df, use_container_width=True, hide_index=True)
+        rows.append({
+            "ticker": row["ticker"],
+            "name": row["name"],
+            "market": row["market"],
+            "score": score,
+            "reason": "；".join(reasons),
+        })
+    df = pd.DataFrame(rows).sort_values("score", ascending=False)
+    st.dataframe(df, use_container_width=True, hide_index=True)
 
 elif page == "Thinking Models":
     section("Thinking Models", "用來反問自己的投資思考工具")
@@ -369,25 +689,25 @@ elif page == "Thinking Models":
 
 elif page == "Decision Log":
     section("Decision Log", "先記錄，再檢討")
-    st.dataframe(load_decisions(), use_container_width=True, hide_index=True)
+    st.dataframe(decision_df, use_container_width=True, hide_index=True)
 
 elif page == "Settings":
     section("Settings")
-    st.markdown("""
-    目前版本：**PIOS v1.0 Company Center**
+    st.markdown(
+        """
+        目前版本：**PIOS v1.1 Company Research Center**
 
-    已完成：
-    - 公司中心
-    - 股票清單
-    - 新增 / 刪除公司
-    - yfinance 行情與估值
-    - 黑天鵝基本分數
-    - 思維模型反問
-    - Thesis / 筆記 / Decision Log 雛形
+        本版重點：
+        - 公司列表改到側邊欄
+        - 公司頁更完整
+        - 財報 / 法說 / 新聞手動紀錄
+        - 思維模型評分
+        - Thesis / 筆記 / Decision Log
+        - 黑天鵝基本分數
 
-    下一版：
-    - Telegram 推播
-    - 新聞熱度
-    - 法說與財報欄位
-    - 永久資料庫
-    """)
+        下一版：
+        - Telegram 推播
+        - 更穩定的資料庫
+        - 新聞自動抓取
+        """
+    )
