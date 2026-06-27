@@ -1,0 +1,48 @@
+app:
+  name: PIOS 4.0 Enterprise
+  timezone: Asia/Taipei
+  base_currency: TWD
+
+database:
+  url: sqlite:///pios4.db
+
+portfolio:
+  modes:
+    normal: "514"
+    alert: "433"
+  assets:
+    core_equity: "00662"
+    leverage_equity: "00670L"
+    bond_cash: "00865B"
+
+radars:
+  market_pressure:
+    enabled: true
+    thresholds:
+      green_max: 35
+      yellow_max: 65
+      red_min: 66
+  margin_leverage:
+    enabled: true
+  credit_spread:
+    enabled: true
+  watchlist_events:
+    enabled: true
+
+watchlist:
+  taiwan:
+    - code: "6969"
+      name: "成信實業"
+      tags: ["core_watch", "zero_waste", "semiconductor_recycle"]
+      key_events:
+        - "中科廠清運處理許可"
+        - "再利用系統登錄"
+        - "新增合作客戶"
+        - "增資重大公告"
+        - "法人連續買超"
+        - "站回30且放量"
+        - "創板轉上市條件"
+        - "每月處理量揭露"
+    - code: "2009"
+      name: "第一銅"
+      tags: ["copper", "cycle"]
