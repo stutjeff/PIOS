@@ -1,5 +1,3 @@
 # PIOS
-
 Personal Investment Operating System
-
-Current version: v0.2
+Version: v2.0 Architecture + BigGo Layer
