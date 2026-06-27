@@ -11,7 +11,7 @@ class DataSourceManager:
     """PIOS unified data-source gateway.
 
     所有外部資料都先進這裡，再寫入標準化資料表。
-    未來新增資料源，只要符合 DataSource 介面，不動主程式。
+    新增資料源只要符合 DataSource 介面，不動主程式。
     """
 
     def __init__(self, sources: Iterable[DataSource]):
@@ -24,10 +24,12 @@ class DataSourceManager:
             try:
                 points = source.fetch()
                 count = save_datapoints(points)
+                symbol_errors = [p for p in points if p.metric == "source_symbol_error"]
                 result = SourceRunResult(
                     source=source.name,
-                    ok=True,
+                    ok=len(symbol_errors) == 0,
                     count=count,
+                    error=(f"{len(symbol_errors)} symbol errors; partial data saved" if symbol_errors else None),
                     started_at=started,
                     finished_at=datetime.utcnow(),
                 )
@@ -50,11 +52,10 @@ def build_default_manager() -> DataSourceManager:
     from data_sources.twse_source import TWSESource
     from data_sources.yahoo_source import YahooFinanceSource
 
-    # v0.3：先接可用市場價格源 + mock 壓力資料。下一版再加 MOPS/TPEx/Data.gov.tw。
     return DataSourceManager(
         sources=[
-            YahooFinanceSource(symbols=["00662.TW", "00670L.TW", "00865B.TW", "6969.TWO"]),
+            YahooFinanceSource(symbols=["QQQ", "00670L.TW", "2002.TW", "6969.TWO"]),
             TWSESource(),
-            MockMarketSource(),
+            MockMarketSource(),  # v0.4 保留，只供雷達總分驗證；UI 會標成測試資料。
         ]
     )

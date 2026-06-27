@@ -2,14 +2,13 @@
 
 PIOS 4.0 是個人投資作業系統的正式產品化骨架。
 
-## v0.3 重點
+## v0.4 重點
 
-- 新增 DataSourceManager：所有資料源統一入口
-- 新增 SourceRun：追蹤每次資料源執行成功/失敗
-- 新增 YahooFinanceSource：核心 ETF / 個股價格來源
-- 新增 TWSESource：證交所官方 open-data 健康檢查接口
-- Streamlit 首頁新增資料源健康狀態
-- `scripts/run_once.py` 可給 GitHub Actions 排程使用
+- Yahoo Finance 改為「單一 symbol 失敗不拖垮整個資料源」
+- Yahoo 404/缺資料會寫入 `source_symbol_error`，方便 UI 追蹤
+- DataSourceManager 支援 partial success
+- 新增 PIOS 總分與 514 / 433 建議模式
+- 首頁升級成作戰總覽：總分、模式、資料源健康、快照、雷達訊號
 
 ## 本地執行
 
