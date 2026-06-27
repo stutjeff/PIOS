@@ -1,3 +1,3 @@
-# PIOS
-Personal Investment Operating System
-Version: v2.0 Architecture + BigGo Layer
+# PIOS Manifesto
+
+PIOS exists to improve investment decision quality.
