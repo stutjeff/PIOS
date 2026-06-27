@@ -1,8 +1,10 @@
-import streamlit as st
-import pandas as pd
-import yfinance as yf
+import re
 from pathlib import Path
 from datetime import datetime
+
+import pandas as pd
+import streamlit as st
+import yfinance as yf
 
 st.set_page_config(
     page_title="PIOS",
@@ -23,6 +25,9 @@ REQUIRED_COLUMNS = [
     "main_products", "business_model", "customers", "suppliers",
     "competitors", "moat", "management", "key_questions", "status"
 ]
+
+MARKET_ORDER = {"台股": 1, "美股": 2, "日股": 3}
+
 
 DEFAULT_DATA = [
     {
@@ -111,6 +116,23 @@ DEFAULT_DATA = [
         "status": "持續追蹤",
     },
     {
+        "ticker": "MSFT",
+        "name": "Microsoft",
+        "market": "美股",
+        "industry": "軟體 / 雲端",
+        "sub_industry": "AI雲端",
+        "theme": "AI、雲端、企業軟體",
+        "main_products": "Azure、Office、Windows、Copilot、企業雲端服務",
+        "business_model": "以雲端、訂閱制軟體與企業服務創造穩定現金流。",
+        "customers": "企業、政府、個人用戶、開發者",
+        "suppliers": "資料中心、晶片、軟體生態系供應商",
+        "competitors": "Google、Amazon、Oracle、Salesforce",
+        "moat": "企業客戶黏著度、雲端平台、軟體生態系。",
+        "management": "待補充",
+        "key_questions": "AI投入是否轉化為收入？Azure成長是否延續？資本支出壓力是否上升？",
+        "status": "持續追蹤",
+    },
+    {
         "ticker": "CEG",
         "name": "Constellation Energy",
         "market": "美股",
@@ -147,6 +169,54 @@ DEFAULT_DATA = [
 ]
 
 
+def normalize_ticker(ticker, market=None):
+    raw = str(ticker).strip()
+    if not raw:
+        return ""
+
+    t = raw.upper().replace(" ", "")
+
+    # Normalize common Taiwan / Japan suffixes
+    t = t.replace(".TW", ".TW").replace(".TWO", ".TWO").replace(".T", ".T")
+
+    if market == "台股":
+        if re.fullmatch(r"\d{4}", t):
+            return f"{t}.TW"
+        if t.endswith(".TW") or t.endswith(".TWO"):
+            return t
+        return t
+
+    if market == "日股":
+        if re.fullmatch(r"\d{4}", t):
+            return f"{t}.T"
+        if t.endswith(".T"):
+            return t
+        return t
+
+    if market == "美股":
+        return t.replace(".US", "")
+
+    return t
+
+
+def ticker_sort_key(ticker):
+    t = str(ticker).upper()
+    m = re.search(r"\d+", t)
+    if m:
+        return (0, int(m.group()), t)
+    return (1, 999999, t)
+
+
+def sort_watchlist(df):
+    df = df.copy()
+    df["ticker"] = df.apply(lambda r: normalize_ticker(r["ticker"], r["market"]), axis=1)
+    df["_market_order"] = df["market"].map(MARKET_ORDER).fillna(99)
+    df["_ticker_num"] = df["ticker"].apply(lambda x: ticker_sort_key(x)[1])
+    df["_ticker_alpha"] = df["ticker"].astype(str).str.upper()
+    df = df.sort_values(["_market_order", "_ticker_num", "_ticker_alpha", "name"])
+    return df.drop(columns=["_market_order", "_ticker_num", "_ticker_alpha"])
+
+
 def init_csv(path, columns):
     if not path.exists():
         pd.DataFrame(columns=columns).to_csv(path, index=False)
@@ -163,10 +233,13 @@ def load_watchlist():
     for col in REQUIRED_COLUMNS:
         if col not in df.columns:
             df[col] = ""
-    return df[REQUIRED_COLUMNS]
+    df = df[REQUIRED_COLUMNS]
+    df = sort_watchlist(df)
+    return df
 
 
 def save_watchlist(df):
+    df = sort_watchlist(df)
     df.to_csv(WATCHLIST_FILE, index=False)
 
 
@@ -193,7 +266,6 @@ def get_price_data(ticker):
         high_52w = float(close.max())
         low_52w = float(close.min())
         drop_from_high = (latest_close / high_52w - 1) * 100
-        upside_from_low = (latest_close / low_52w - 1) * 100
         avg_volume_20 = float(volume.tail(20).mean())
         latest_volume = float(volume.iloc[-1])
         volume_ratio = latest_volume / avg_volume_20 if avg_volume_20 > 0 else 0
@@ -203,7 +275,6 @@ def get_price_data(ticker):
             "high_52w": high_52w,
             "low_52w": low_52w,
             "drop_from_high": drop_from_high,
-            "upside_from_low": upside_from_low,
             "volume_ratio": volume_ratio,
         }
     except Exception:
@@ -267,19 +338,15 @@ def black_swan_score(price_data):
     if abs(price_data["daily_change"]) >= 7:
         score += 25
         reasons.append("單日漲跌超過 7%")
-
     if price_data["volume_ratio"] >= 2:
         score += 20
         reasons.append("成交量超過 20 日均量 2 倍")
-
     if price_data["drop_from_high"] <= -30:
         score += 15
         reasons.append("距 52 週高點跌深超過 30%")
-
     if price_data["drop_from_high"] <= -50:
         score += 15
         reasons.append("距 52 週高點跌深超過 50%")
-
     if not reasons:
         reasons.append("目前沒有明顯黑天鵝異動")
 
@@ -331,8 +398,28 @@ def score_slider(label, default=70, key=None):
     return value
 
 
+def market_group_label(market, count):
+    icon = {"台股": "🇹🇼", "美股": "🇺🇸", "日股": "🇯🇵"}.get(market, "🌐")
+    return f"{icon} {market}（{count}）"
+
+
+def render_company_picker(df):
+    selected_ticker = None
+    for market in ["台股", "美股", "日股"]:
+        group = df[df["market"] == market]
+        if group.empty:
+            continue
+        with st.sidebar.expander(market_group_label(market, len(group)), expanded=True):
+            labels = (group["ticker"] + "｜" + group["name"]).tolist()
+            key = f"company_radio_{market}"
+            chosen = st.radio("公司", labels, key=key, label_visibility="collapsed")
+            if chosen and selected_ticker is None:
+                selected_ticker = chosen.split("｜")[0]
+    return selected_ticker
+
+
 st.title("📈 PIOS")
-st.caption("Personal Investment Operating System｜v1.1 Company Research Center")
+st.caption("Personal Investment Operating System｜v1.2 Watchlist Sorting")
 
 watchlist = load_watchlist()
 notes_df = load_table(NOTES_FILE, ["ticker", "note", "updated_at"])
@@ -345,7 +432,7 @@ news_df = load_table(NEWS_FILE, ["ticker", "date", "title", "importance", "summa
 st.sidebar.title("PIOS")
 page = st.sidebar.radio(
     "選單",
-    ["Dashboard", "Company Center", "Black Swan", "Thinking Models", "Decision Log", "Settings"],
+    ["Dashboard", "Company Center", "Watchlist", "Black Swan", "Thinking Models", "Decision Log", "Settings"],
 )
 
 if page == "Dashboard":
@@ -359,7 +446,7 @@ if page == "Dashboard":
     c4.metric("公司總數", len(watchlist))
 
     st.divider()
-    section("Core Watchlist")
+    section("Watchlist Overview", "已依台股 → 美股 → 日股，以及代號大小排序")
     show = watchlist[["ticker", "name", "market", "industry", "theme", "status"]].copy()
     show["status"] = show["status"].apply(status_badge)
     st.dataframe(show, use_container_width=True, hide_index=True)
@@ -367,8 +454,8 @@ if page == "Dashboard":
 elif page == "Company Center":
     section("Company Center", "公司研究中心")
 
-    market_filter = st.sidebar.selectbox("市場", ["全部", "台股", "美股", "日股"])
-    status_filter = st.sidebar.selectbox("狀態", ["全部", "核心觀察", "持續追蹤", "觀察", "暫停追蹤"])
+    market_filter = st.sidebar.selectbox("市場篩選", ["全部", "台股", "美股", "日股"])
+    status_filter = st.sidebar.selectbox("狀態篩選", ["全部", "核心觀察", "持續追蹤", "觀察", "暫停追蹤"])
 
     filtered = watchlist.copy()
     if market_filter != "全部":
@@ -379,11 +466,10 @@ elif page == "Company Center":
     if filtered.empty:
         st.warning("目前沒有符合條件的公司。")
     else:
-        selected = st.sidebar.radio(
-            "公司",
-            (filtered["ticker"] + "｜" + filtered["name"]).tolist()
-        )
-        ticker = selected.split("｜")[0]
+        ticker = render_company_picker(filtered)
+        if ticker is None:
+            st.stop()
+
         company = watchlist[watchlist["ticker"] == ticker].iloc[0]
 
         price = get_price_data(ticker)
@@ -609,12 +695,21 @@ elif page == "Company Center":
                     st.success("已儲存 Decision")
                     st.rerun()
 
+elif page == "Watchlist":
+    section("Watchlist 管理", "新增、刪除與排序股票")
+
+    st.info("排序規則：台股 → 美股 → 日股；同市場內依股票代碼由小到大排列。")
+
+    show = watchlist[["ticker", "name", "market", "industry", "theme", "status"]].copy()
+    show["status"] = show["status"].apply(status_badge)
+    st.dataframe(show, use_container_width=True, hide_index=True)
+
     st.divider()
     section("新增 / 更新公司")
     with st.form("add_company"):
         cols = st.columns(2)
         with cols[0]:
-            ticker = st.text_input("股票代號", placeholder="例如：6969.TW / NVDA / 7203.T")
+            ticker_raw = st.text_input("股票代號", placeholder="例如：6641.tw / NVDA / 7203.t")
             name = st.text_input("公司名稱")
             market = st.selectbox("市場", ["台股", "美股", "日股"])
             status = st.selectbox("狀態", ["核心觀察", "持續追蹤", "觀察", "暫停追蹤"])
@@ -632,11 +727,12 @@ elif page == "Company Center":
         key_questions = st.text_area("關鍵問題")
         ok = st.form_submit_button("新增 / 更新公司")
         if ok:
+            ticker = normalize_ticker(ticker_raw, market)
             if not ticker or not name:
                 st.error("股票代號與公司名稱必填。")
             else:
                 new = pd.DataFrame([{
-                    "ticker": ticker.strip(),
+                    "ticker": ticker,
                     "name": name.strip(),
                     "market": market,
                     "industry": industry.strip(),
@@ -655,9 +751,10 @@ elif page == "Company Center":
                 watchlist = pd.concat([watchlist, new], ignore_index=True)
                 watchlist = watchlist.drop_duplicates(subset=["ticker"], keep="last")
                 save_watchlist(watchlist)
-                st.success(f"已新增 / 更新：{ticker} {name}")
+                st.success(f"已新增 / 更新並排序：{ticker} {name}")
                 st.rerun()
 
+    st.divider()
     section("刪除公司")
     delete_ticker = st.selectbox("選擇要刪除的股票", [""] + watchlist["ticker"].astype(str).tolist())
     if st.button("刪除公司"):
@@ -680,7 +777,7 @@ elif page == "Black Swan":
             "score": score,
             "reason": "；".join(reasons),
         })
-    df = pd.DataFrame(rows).sort_values("score", ascending=False)
+    df = pd.DataFrame(rows).sort_values(["market", "score"], ascending=[True, False])
     st.dataframe(df, use_container_width=True, hide_index=True)
 
 elif page == "Thinking Models":
@@ -695,19 +792,14 @@ elif page == "Settings":
     section("Settings")
     st.markdown(
         """
-        目前版本：**PIOS v1.1 Company Research Center**
+        目前版本：**PIOS v1.2 Watchlist Sorting**
 
         本版重點：
-        - 公司列表改到側邊欄
-        - 公司頁更完整
-        - 財報 / 法說 / 新聞手動紀錄
-        - 思維模型評分
-        - Thesis / 筆記 / Decision Log
-        - 黑天鵝基本分數
-
-        下一版：
-        - Telegram 推播
-        - 更穩定的資料庫
-        - 新聞自動抓取
+        - 新增 Watchlist 管理頁
+        - 新增 / 刪除公司移出 Company Center
+        - 股票自動標準化：6641.tw → 6641.TW，7203.t → 7203.T，nvda → NVDA
+        - 依市場分組：台股 → 美股 → 日股
+        - 同市場內依代號大小排序
+        - 側邊欄公司清單分組顯示
         """
     )
