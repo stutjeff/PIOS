@@ -10,8 +10,7 @@ from services.ingestion import save_datapoints, save_source_run
 class DataSourceManager:
     """PIOS unified data-source gateway.
 
-    所有外部資料都先進這裡，再寫入標準化資料表。
-    新增資料源只要符合 DataSource 介面，不動主程式。
+    v0.5 原則：資料源可以部分失敗，但不能拖垮整個系統。
     """
 
     def __init__(self, sources: Iterable[DataSource]):
@@ -25,11 +24,13 @@ class DataSourceManager:
                 points = source.fetch()
                 count = save_datapoints(points)
                 symbol_errors = [p for p in points if p.metric == "source_symbol_error"]
+                source_errors = [p for p in points if p.metric == "source_error"]
+                errors = symbol_errors + source_errors
                 result = SourceRunResult(
                     source=source.name,
-                    ok=len(symbol_errors) == 0,
+                    ok=len(errors) == 0,
                     count=count,
-                    error=(f"{len(symbol_errors)} symbol errors; partial data saved" if symbol_errors else None),
+                    error=(f"{len(errors)} errors; partial data saved" if errors else None),
                     started_at=started,
                     finished_at=datetime.utcnow(),
                 )
@@ -38,7 +39,7 @@ class DataSourceManager:
                     source=source.name,
                     ok=False,
                     count=0,
-                    error=str(exc),
+                    error=str(exc)[:1000],
                     started_at=started,
                     finished_at=datetime.utcnow(),
                 )
@@ -54,8 +55,19 @@ def build_default_manager() -> DataSourceManager:
 
     return DataSourceManager(
         sources=[
-            YahooFinanceSource(symbols=["QQQ", "00670L.TW", "2002.TW", "6969.TWO"]),
+            YahooFinanceSource(
+                symbols=[
+                    "QQQ",       # Nasdaq 100 ETF：核心風險資產代理
+                    "^VIX",      # 波動率壓力
+                    "TLT",       # 長天期美債壓力代理
+                    "00670L.TW",  # 台股正二
+                    "00662.TW",   # 電力基建 ETF
+                    "00865B.TW",  # 短天期美債 ETF
+                    "2002.TW",    # 中鋼
+                    "6969.TWO",   # 成信：可能 Yahoo 無資料，允許 partial
+                ]
+            ),
             TWSESource(),
-            MockMarketSource(),  # v0.4 保留，只供雷達總分驗證；UI 會標成測試資料。
+            MockMarketSource(),  # 僅保留為開發測試資料，正式總分不再依賴它。
         ]
     )

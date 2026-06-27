@@ -53,12 +53,13 @@ def main() -> None:
 
     with db_session() as session:
         source_runs = session.execute(select(SourceRun).order_by(SourceRun.started_at.desc()).limit(12)).scalars().all()
-        latest_snapshots = session.execute(select(MarketSnapshot).order_by(MarketSnapshot.captured_at.desc()).limit(80)).scalars().all()
+        latest_snapshots = session.execute(select(MarketSnapshot).where(MarketSnapshot.source != "mock_market").order_by(MarketSnapshot.captured_at.desc()).limit(80)).scalars().all()
+        mock_snapshots = session.execute(select(MarketSnapshot).where(MarketSnapshot.source == "mock_market").order_by(MarketSnapshot.captured_at.desc()).limit(20)).scalars().all()
         latest_signals = session.execute(select(RadarSignal).order_by(RadarSignal.created_at.desc()).limit(10)).scalars().all()
 
     a, b, c = st.columns(3)
     a.metric("最近資料源執行", len(source_runs))
-    b.metric("最新資料快照", len(latest_snapshots))
+    b.metric("最新正式資料快照", len(latest_snapshots))
     c.metric("最新雷達訊號", len(latest_signals))
 
     left, right = st.columns([1, 1])
@@ -102,7 +103,22 @@ def main() -> None:
                 for s in latest_snapshots
             ], use_container_width=True, hide_index=True)
         else:
-            st.info("尚無資料。")
+            st.info("尚無正式資料。")
+
+        with st.expander("開發測試資料 mock_market"):
+            if mock_snapshots:
+                st.dataframe([
+                    {
+                        "source": s.source,
+                        "symbol": s.symbol,
+                        "metric": s.metric,
+                        "value": s.value,
+                        "captured_at": s.captured_at,
+                    }
+                    for s in mock_snapshots
+                ], use_container_width=True, hide_index=True)
+            else:
+                st.caption("目前沒有 mock 資料。")
 
 
 if __name__ == "__main__":

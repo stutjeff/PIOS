@@ -1,24 +1,25 @@
-# PIOS 4.0 Enterprise
+# PIOS 4.0 Enterprise v0.5
 
 PIOS 4.0 是個人投資作業系統的正式產品化骨架。
 
-## v0.4 重點
+## v0.5 重點
 
-- Yahoo Finance 改為「單一 symbol 失敗不拖垮整個資料源」
-- Yahoo 404/缺資料會寫入 `source_symbol_error`，方便 UI 追蹤
-- DataSourceManager 支援 partial success
-- 新增 PIOS 總分與 514 / 433 建議模式
-- 首頁升級成作戰總覽：總分、模式、資料源健康、快照、雷達訊號
+- 新增正式市場壓力雷達 `real_market_pressure`
+- 新增台股核心追蹤雷達 `taiwan_core_watch`
+- PIOS 總分改為加權決策引擎
+- mock_market 降為低權重測試資料，不再主導決策
+- 首頁正式資料與 mock 測試資料分離顯示
+- Yahoo Finance 加入 QQQ、VIX、TLT、00662、00670L、00865B、2002、6969 追蹤
 
-## 本地執行
+## 操作
 
 ```bash
 pip install -r requirements.txt
+python scripts/run_once.py
 streamlit run app.py
 ```
 
-## 單次批次執行
+## 注意
 
-```bash
-python scripts/run_once.py
-```
+`6969.TWO` 在 Yahoo 可能查無資料，這會顯示為 partial/fail，但不會讓系統掛掉。
+這是預期行為。
