@@ -54,6 +54,10 @@ class NewsItem(Base):
     symbols: Mapped[str | None] = mapped_column(String(240), nullable=True, index=True)
     sentiment: Mapped[float | None] = mapped_column(Float, nullable=True)
     summary: Mapped[str | None] = mapped_column(Text, nullable=True)
+    category: Mapped[str | None] = mapped_column(String(120), nullable=True, index=True)
+    related_symbols: Mapped[str | None] = mapped_column(String(300), nullable=True, index=True)
+    impact_score: Mapped[float | None] = mapped_column(Float, nullable=True, index=True)
+    risk_score: Mapped[float | None] = mapped_column(Float, nullable=True, index=True)
     published_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True, index=True)
     captured_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, index=True)
 

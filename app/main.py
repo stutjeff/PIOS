@@ -7,6 +7,7 @@ from core.settings import load_settings
 from data_sources.manager import build_default_manager
 from radars.decision import latest_pios_decision
 from services.news_ingestion import build_default_news_manager
+from services.news_intelligence import enrich_recent_news, build_personal_news_digest
 from services.radar_runner import run_all_radars
 from storage.db import init_db, db_session
 from storage.models import MarketSnapshot, NewsItem, RadarSignal, SourceRun
@@ -46,11 +47,14 @@ def main() -> None:
             for r in results:
                 icon = "✅" if r.ok else "⚠️"
                 st.write(f"{icon} {r.source}: 新增 {r.count} 則" + (f"｜{r.error}" if r.error else ""))
+            updated = enrich_recent_news()
+            st.caption(f"已完成新聞智慧化：更新 {updated} 則分類/摘要/關聯標的")
 
     with col3:
         if st.button("執行雷達"):
+            updated = enrich_recent_news()
             signals = run_all_radars()
-            st.success(f"已產生 {len(signals)} 筆雷達訊號")
+            st.success(f"已更新 {updated} 則新聞智慧標籤，並產生 {len(signals)} 筆雷達訊號")
 
     with col4:
         st.metric("PIOS 總分", decision.score)
@@ -67,7 +71,7 @@ def main() -> None:
         latest_snapshots = session.execute(select(MarketSnapshot).where(MarketSnapshot.source != "mock_market").order_by(MarketSnapshot.captured_at.desc()).limit(80)).scalars().all()
         mock_snapshots = session.execute(select(MarketSnapshot).where(MarketSnapshot.source == "mock_market").order_by(MarketSnapshot.captured_at.desc()).limit(20)).scalars().all()
         latest_signals = session.execute(select(RadarSignal).order_by(RadarSignal.created_at.desc()).limit(12)).scalars().all()
-        latest_news = session.execute(select(NewsItem).order_by(NewsItem.captured_at.desc()).limit(20)).scalars().all()
+        latest_news = session.execute(select(NewsItem).order_by(NewsItem.impact_score.desc().nullslast(), NewsItem.captured_at.desc()).limit(30)).scalars().all()
 
     a, b, c, d = st.columns(4)
     a.metric("最近資料源執行", len(source_runs))
@@ -101,12 +105,15 @@ def main() -> None:
         else:
             st.info("尚無雷達訊號。先抓資料，再執行雷達。")
 
-        st.subheader("新聞雷達")
+        st.subheader("個人專屬新聞流")
         if latest_news:
-            for n in latest_news[:8]:
-                label = n.query or n.symbols or n.publisher or n.source
-                st.markdown(f"- [{n.title}]({n.url})")
-                st.caption(f"{n.source}｜{label}｜{n.published_at or n.captured_at}")
+            for n in latest_news[:10]:
+                impact = n.impact_score if n.impact_score is not None else 0
+                stars = "★★★★★" if impact >= 80 else "★★★★☆" if impact >= 68 else "★★★☆☆" if impact >= 55 else "★★☆☆☆"
+                st.markdown(f"- **{stars}** [{n.title}]({n.url})")
+                st.caption(f"{n.category or '未分類'}｜影響 {impact}｜關聯：{n.related_symbols or '待判讀'}｜{n.published_at or n.captured_at}")
+                if n.summary:
+                    st.caption(n.summary)
         else:
             st.info("尚無新聞。先按『抓取新聞』。Finnhub / Marketaux 可之後再加 API key。")
 
@@ -134,9 +141,12 @@ def main() -> None:
                     "source": n.source,
                     "title": n.title,
                     "publisher": n.publisher,
+                    "category": n.category,
+                    "impact": n.impact_score,
+                    "risk": n.risk_score,
+                    "related": n.related_symbols,
+                    "summary": n.summary,
                     "query": n.query,
-                    "symbols": n.symbols,
-                    "sentiment": n.sentiment,
                     "published_at": n.published_at,
                 }
                 for n in latest_news

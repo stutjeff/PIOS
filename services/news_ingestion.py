@@ -9,6 +9,7 @@ from data_sources.base import SourceRunResult
 from services.ingestion import save_source_run
 from storage.db import db_session
 from storage.models import NewsItem
+from services.news_intelligence import classify_news, enrich_recent_news
 
 
 @dataclass
@@ -30,6 +31,7 @@ def save_news_items(items: list[NewsPoint]) -> int:
             ).scalar_one_or_none()
             if exists:
                 continue
+            profile = classify_news(item.title, item.query, item.publisher)
             session.add(
                 NewsItem(
                     source=item.source,
@@ -39,7 +41,11 @@ def save_news_items(items: list[NewsPoint]) -> int:
                     query=item.query,
                     symbols=item.symbols,
                     sentiment=item.sentiment,
-                    summary=item.summary,
+                    summary=item.summary or profile.short_summary,
+                    category=profile.category,
+                    related_symbols=profile.related_symbols,
+                    impact_score=profile.impact_score,
+                    risk_score=profile.risk_score,
                     published_at=item.published_at,
                     captured_at=item.captured_at or datetime.utcnow(),
                 )
@@ -73,6 +79,7 @@ class NewsSourceManager:
                 )
             )
             results.append(result)
+        enrich_recent_news()
         return results
 
 
