@@ -7,6 +7,8 @@ from radars.news_radar import NewsRadar
 from radars.real_market import RealMarketPressureRadar, TaiwanCoreRadar
 from storage.db import db_session
 from storage.models import RadarSignal
+from radars.decision import latest_pios_decision
+from services.alerts import generate_alerts
 
 
 def _normalize_results(result: RadarResult | list[RadarResult]) -> list[RadarResult]:
@@ -35,4 +37,6 @@ def run_all_radars() -> list[RadarSignal]:
                 )
                 session.add(row)
                 signals.append(row)
+    latest_pios_decision(save_history=True)
+    generate_alerts()
     return signals

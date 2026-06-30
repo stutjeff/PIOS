@@ -64,3 +64,25 @@ class NewsItem(Base):
     __table_args__ = (
         UniqueConstraint("source", "url", name="uq_news_source_url"),
     )
+
+
+class PiosScoreHistory(Base):
+    __tablename__ = "pios_score_history"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    score: Mapped[float] = mapped_column(Float, default=0, index=True)
+    level: Mapped[str] = mapped_column(String(20), index=True)
+    mode: Mapped[str] = mapped_column(String(20), index=True)
+    summary: Mapped[str] = mapped_column(Text)
+    components_json: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, index=True)
+
+
+class AlertEvent(Base):
+    __tablename__ = "alert_events"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    source: Mapped[str] = mapped_column(String(80), index=True)
+    level: Mapped[str] = mapped_column(String(20), index=True)
+    title: Mapped[str] = mapped_column(Text)
+    detail: Mapped[str | None] = mapped_column(Text, nullable=True)
+    status: Mapped[str] = mapped_column(String(20), default="open", index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, index=True)

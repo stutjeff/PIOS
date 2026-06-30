@@ -58,8 +58,16 @@ def build_default_manager() -> DataSourceManager:
             YahooFinanceSource(
                 symbols=[
                     "QQQ",       # Nasdaq 100 ETF：核心風險資產代理
+                    "SPY",       # S&P 500
+                    "IWM",       # Russell 2000
+                    "SOXX",      # 半導體 ETF
                     "^VIX",      # 波動率壓力
                     "TLT",       # 長天期美債壓力代理
+                    "UUP",       # 美元代理
+                    "GLD",       # 黃金代理
+                    "USO",       # 原油代理
+                    "CPER",      # 銅代理
+                    "BTC-USD",   # 風險偏好代理
                     "00670L.TW",  # 台股正二
                     "00662.TW",   # 電力基建 ETF
                     "00865B.TW",  # 短天期美債 ETF

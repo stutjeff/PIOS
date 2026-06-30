@@ -1,46 +1,56 @@
-# PIOS 4.0 Enterprise v0.7
+# PIOS 4.0 Enterprise v1.0 Alpha
 
-個人投資作業系統 Enterprise 架構。
+PIOS 是個人投資作業系統。v1.0 Alpha 的目標不是再加幾個按鈕，而是把資料源、新聞、雷達、總分、警報、匯出與排程整理成可持續擴充的產品骨架。
 
-## v0.7 新增
+## 本版新增
 
-- 新聞智慧化 News Intelligence
-- 新聞自動分類：AI資料中心/電力、美債/利率、台股ETF、成信6969、半導體、能源、美股科技
-- 新聞影響分數 impact_score
-- 新聞風險分數 risk_score
-- 關聯標的判讀：6969、00662、00670L、00865B/TLT、QQQ、電網、AI散熱
-- 個人專屬新聞流：依影響分數排序，不再只列 RSS
-- 新聞摘要欄位：每則新聞自動產生一行判讀
-- SQLite 輕量 migration：既有 `news_items` 會自動補欄位
-- News Radar 納入新聞分類與平均影響力
+- 全系統更新：市場資料、新聞、智慧標籤、雷達、警報一次執行
+- PIOS 壓力分正式化：多雷達加權，支援分數歷史
+- 雷達分數拆解：看得出總分怎麼來
+- 警報中心：雷達與高影響新聞自動產生 alert
+- 新聞中心：分類、影響分數、風險分數、關聯標的、摘要
+- 個人專屬新聞流：按 impact_score 排序
+- 全球資料擴充：QQQ、SPY、IWM、SOXX、VIX、TLT、UUP、GLD、USO、CPER、BTC-USD
+- 台股核心資料：00662、00670L、00865B、2002；6969 允許 Yahoo partial fail
+- CSV 匯出：market_snapshots、news_items、radar_signals、source_runs、pios_score_history、alert_events
+- SQLite 自動 migration：舊資料庫可直接升級
 
-## v0.6 保留
+## Streamlit 主程式
 
-- Google News RSS 資料源，不需要 API key
-- Finnhub News 支援 API key：`FINNHUB_API_KEY`
-- Marketaux News 支援 API key：`MARKETAUX_API_KEY`
-- 新聞資料表 `news_items`
-- 首頁「抓取新聞」與新聞雷達區塊
-- PIOS Score 納入新聞雷達權重
-
-## Streamlit Secrets 可選
-
-```toml
-FINNHUB_API_KEY="你的 key"
-MARKETAUX_API_KEY="你的 key"
+```txt
+app.py
 ```
 
-沒有 API key 也可以先跑 Google News RSS。
+## 必要套件
 
-## 執行
-
-```bash
-pip install -r requirements.txt
-streamlit run app.py
+```txt
+streamlit>=1.36.0
+SQLAlchemy>=2.0.0
+PyYAML>=6.0.0
+pandas>=2.0.0
+python-dotenv>=1.0.0
+pydantic>=2.0.0
 ```
 
-## 排程
+## 可選 API Key
 
-```bash
-python scripts/run_once.py
+`.env` 或 Streamlit Secrets：
+
+```txt
+FINNHUB_API_KEY=
+MARKETAUX_API_KEY=
 ```
+
+沒有 API key 也能使用 Google News RSS。
+
+## 建議使用流程
+
+1. 按「全系統更新」
+2. 看 PIOS 壓力分與建議模式
+3. 看警報中心
+4. 看個人專屬新聞流
+5. 有異常再進資料健康與匯出頁面
+
+## 注意
+
+PIOS 是決策輔助系統，不是自動下單系統。分數是壓力分，越高代表越需要保守，不代表越值得買。
